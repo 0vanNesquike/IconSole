@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>IconSole</title>
+<link rel="stylesheet" href="../static/style.css">
+</head>
+<body>
+
+<div class="background"></div>
+<div id="fireflies"></div>
+<div id="cursor-glow"></div>
+
+<!-- ===================== -->
+<!-- PC / TV SCREEN -->
+<!-- ===================== -->
+<div id="pc-screen">
+    <div class="top">
+        <div class="logo">◉ IconSole</div>
+    </div>
+
+    <div id="connect-pc-container" class="center">
+        <button id="connectBtn">Подключиться</button>
+    </div>
+
+    <div id="room" class="hidden">
+        <div class="lobby">
+            <div class="left">
+                <h2>Подключенные игроки</h2>
+                <div id="players"></div>
+                <button id="continueBtn" class="hidden">Продолжить</button>
+            </div>
+            <div class="right">
+                <div class="qr-container">
+                    <img id="qr" class="qr"/>
+                </div>
+                <div class="code-box">
+                    <div id="code">---</div>
+                </div>
+                <p class="hint">Отсканируйте QR или введите код на телефоне</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-hero" class="game-hero">
+        <div class="game-video">
+            <video autoplay muted loop playsinline id="heroVideo">
+                <source src="https://assets.mixkit.co/videos/preview/mixkit-space-game-background-2356-large.mp4" type="video/mp4">
+            </video>
+        </div>
+        <div class="game-info">
+            <span class="tag">Новинка</span>
+            <h2>Space Arena Online</h2>
+            <p>Космические PvP бои с друзьями через телефон. Быстрые матчи, хаотичные арены и динамика.</p>
+            <button class="play-btn" id="heroPlayBtn">Играть</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== -->
+<!-- GAME LOBBY -->
+<!-- ===================== -->
+<div id="game-lobby" class="hidden">
+    <div class="lobby-header">
+        <div class="logo">◉ IconSole</div>
+        <div class="room-info-wrapper">
+            <button id="room-info-btn" class="room-info-btn">👥 В комнате: <span id="lobby-player-count">0</span></button>
+            <div id="room-info-tooltip" class="room-info-tooltip hidden">
+                <img id="lobby-qr" class="tooltip-qr"/>
+                <div class="tooltip-code" id="lobby-code">---</div>
+                <p>QR для подключения</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="featured-game">
+        <div class="featured-info">
+            <span class="featured-tag" id="featured-tag">Актуальное</span>
+            <h1 id="featured-title">Space Arena Online</h1>
+            <p id="featured-description">Космические PvP бои с друзьями через телефон. Быстрые матчи, хаотичные арены и динамика.</p>
+            <button class="featured-play-btn" id="featured-play-btn">Играть сейчас</button>
+        </div>
+        <div class="featured-video">
+            <video autoplay muted loop playsinline id="featured-video">
+                <source src="https://assets.mixkit.co/videos/preview/mixkit-space-game-background-2356-large.mp4" type="video/mp4">
+            </video>
+        </div>
+    </div>
+
+    <div id="categories-sections"></div>
+</div>
+
+<!-- ===================== -->
+<!-- MOBILE SCREEN -->
+<!-- ===================== -->
+<div id="mobile-screen">
+    <div class="mobile-container">
+        <h1>◉ IconSole</h1>
+        <input id="name" placeholder="Ваше имя" value="Игрок">
+        <input id="roomCode" placeholder="Код комнаты (пример: 123-456)">
+        <button id="joinBtn">Подключиться</button>
+    </div>
+</div>
+
+<script src="../static/script.js"></script>
+</body>
+</html>
