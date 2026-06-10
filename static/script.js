@@ -19,16 +19,39 @@ const lobbyQr = document.getElementById("lobby-qr");
 const lobbyCode = document.getElementById("lobby-code");
 const featuredPlayBtn = document.getElementById("featured-play-btn");
 
+// Мобильные элементы
+const mobileNameInput = document.getElementById("name");
+const mobileCodeInput = document.getElementById("roomCode");
+const mobileJoinBtn = document.getElementById("joinBtn");
+
 let roomCode = null;
 let players = [];
 let selectedGameId = null;
 let selectedGameData = null;
-let testMode = false;
+let ws = null;
 
 let currentCategoryIndex = 0;
 let currentGameInCategory = 0;
 let categoryElements = [];
 let isAnimating = false;
+
+// Определяем устройство
+const isMobile = window.innerWidth < 768;
+
+if (isMobile) {
+    pc.style.display = "none";
+    mobile.style.display = "flex";
+
+    // Получаем код комнаты из URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomFromUrl = urlParams.get('room');
+    if (roomFromUrl) {
+        mobileCodeInput.value = roomFromUrl;
+    }
+} else {
+    pc.style.display = "flex";
+    mobile.style.display = "none";
+}
 
 const CATEGORIES = [
     {
@@ -85,73 +108,148 @@ const CATEGORIES = [
     }
 ];
 
-const isMobile = window.innerWidth < 768;
+// ===================== ПК ЛОГИКА =====================
+if (!isMobile) {
+    connectBtn?.addEventListener("click", async () => {
+        // Создаём комнату на сервере
+        const response = await fetch('/api/create_room');
+        const data = await response.json();
+        roomCode = data.code;
+
+        codeEl.textContent = roomCode;
+
+        // QR ведёт на этот же сайт с параметром комнаты
+        const mobileUrl = `${window.location.origin}?room=${roomCode}`;
+        qr.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(mobileUrl)}`;
+
+        connectPcContainer.classList.add("hidden");
+        room.classList.remove("hidden");
+
+        // Подключаем WebSocket и создаём комнату
+        connectWebSocket(roomCode, "Хост", "pc", true);
+    });
+}
+
+// ===================== МОБИЛЬНАЯ ЛОГИКА =====================
 if (isMobile) {
-    pc.style.display = "none";
-    mobile.style.display = "flex";
-} else {
-    pc.style.display = "flex";
-    mobile.style.display = "none";
-}
+    mobileJoinBtn?.addEventListener("click", async () => {
+        const code = mobileCodeInput.value.trim();
+        const name = mobileNameInput.value.trim() || "Игрок";
 
-function generateCode() {
-    const part1 = Math.floor(100 + Math.random() * 900);
-    const part2 = Math.floor(100 + Math.random() * 900);
-    return `${part1}-${part2}`;
-}
+        if (!code) {
+            alert("Введите код комнаты");
+            return;
+        }
 
-connectBtn?.addEventListener("click", () => {
-    roomCode = generateCode();
-    codeEl.textContent = roomCode;
-    qr.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${roomCode}`;
-    connectPcContainer.classList.add("hidden");
-    room.classList.remove("hidden");
-    setTimeout(() => addTestPlayer(), 500);
-});
+        // Проверяем существование комнаты
+        const response = await fetch(`/api/room/${code}/exists`);
+        const data = await response.json();
 
-function addTestPlayer() {
-    if (testMode) return;
-    testMode = true;
-    const testName = "Тест (ПК)";
-    const testSeed = "test_player_" + Date.now();
-    const div = document.createElement("div");
-    div.className = "player";
-    div.innerHTML = `<img src="https://api.dicebear.com/7.x/bottts/svg?seed=${testSeed}"><span>${testName}</span>`;
-    playersEl.appendChild(div);
-    players.push({ name: testName, seed: testSeed, isTest: true });
-    continueBtn.classList.remove("hidden");
-}
+        if (!data.exists) {
+            alert("Комната не найдена");
+            return;
+        }
 
-function addPlayer(name, avatarSeed) {
-    const div = document.createElement("div");
-    div.className = "player";
-    const seed = avatarSeed || name + Date.now();
-    div.innerHTML = `<img src="https://api.dicebear.com/7.x/bottts/svg?seed=${seed}"><span>${escapeHtml(name)}</span>`;
-    playersEl.appendChild(div);
-    players.push({ name, seed });
-    continueBtn.classList.remove("hidden");
-}
+        // Подключаем WebSocket
+        connectWebSocket(code, name, "mobile", false);
 
-joinBtn?.addEventListener("click", () => {
-    const name = document.getElementById("name").value.trim() || "Игрок";
-    const code = document.getElementById("roomCode").value.trim();
-    if (!code) { alert("Введите код комнаты"); return; }
-    if (code === roomCode) {
-        const avatarSeed = name + Date.now() + Math.random();
-        addPlayer(name, avatarSeed);
-        alert("Подключено к комнате " + roomCode);
-        document.getElementById("mobile-screen").innerHTML = `
-            <div class="mobile-container">
-                <h1>◉ IconSole</h1>
-                <p style="color:#4f8cff; margin:20px">Подключено!</p>
-                <p>Комната: ${roomCode}</p>
-                <p>Игрок: ${escapeHtml(name)}</p>
-                <button onclick="location.reload()">Отключиться</button>
-            </div>
+        // Показываем интерфейс ожидания
+        const mobileContainer = document.querySelector('.mobile-container');
+        mobileContainer.innerHTML = `
+            <h1>◉ IconSole</h1>
+            <p style="color:#00e676; margin:20px">✓ Подключение к комнате ${code}...</p>
+            <p>Игрок: ${escapeHtml(name)}</p>
+            <div id="mobileWaitStatus" style="margin-top:20px; color:#ffd166">Ожидание подключения...</div>
+            <button id="mobileDisconnect" style="margin-top:30px; background:#ff4757">Отключиться</button>
         `;
-    } else { alert("Неверный код комнаты"); }
-});
 
+        document.getElementById("mobileDisconnect")?.addEventListener("click", () => {
+            if (ws) ws.close();
+            location.reload();
+        });
+    });
+}
+
+// ===================== WEB-SOCKET ЛОГИКА =====================
+function connectWebSocket(code, playerName, deviceType, isCreatingRoom) {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${protocol}//${window.location.host}/ws/${code}`);
+
+    ws.onopen = () => {
+        console.log('WebSocket connected');
+
+        if (isCreatingRoom) {
+            // ПК создаёт комнату
+            ws.send(JSON.stringify({ type: "create_room", name: playerName, device: deviceType }));
+        } else {
+            // Телефон подключается к комнате
+            ws.send(JSON.stringify({ type: "join", name: playerName, device: deviceType }));
+        }
+    };
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log('Message:', data);
+
+        if (data.type === "room_created") {
+            console.log('Room created:', data.code);
+            // Запрашиваем список игроков
+            ws.send(JSON.stringify({ type: "get_players" }));
+        }
+
+        if (data.type === "joined") {
+            console.log('Joined room:', data.code);
+            if (isMobile) {
+                const waitStatus = document.getElementById("mobileWaitStatus");
+                if (waitStatus) {
+                    waitStatus.innerHTML = "✓ Подключено! Ожидаем начала игры...";
+                    waitStatus.style.color = "#00e676";
+                }
+            }
+        }
+
+        if (data.type === "players_update" && !isMobile) {
+            // Обновляем список игроков на ПК
+            playersEl.innerHTML = '';
+            players = data.players;
+            players.forEach(player => {
+                const div = document.createElement("div");
+                div.className = "player";
+                const hostBadge = player.is_host ? ' <span style="font-size:10px; color:#ffd166">(хост)</span>' : '';
+                div.innerHTML = `<img src="${player.avatar}"><span>${escapeHtml(player.name)}${hostBadge}</span>`;
+                playersEl.appendChild(div);
+            });
+            if (players.length > 0) {
+                continueBtn.classList.remove("hidden");
+            }
+            updateLobbyPlayerCount();
+        }
+
+        if (data.type === "error") {
+            alert(data.message);
+            if (isMobile) {
+                location.reload();
+            }
+        }
+    };
+
+    ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        if (!isMobile) {
+            alert("Ошибка подключения к серверу");
+        }
+    };
+
+    ws.onclose = () => {
+        console.log('WebSocket closed');
+        if (!isMobile && roomCode) {
+            // Если хост отключается, комната удаляется
+            alert("Соединение разорвано");
+        }
+    };
+}
+
+// ===================== ОСТАЛЬНЫЕ ФУНКЦИИ (ПК ЛОББИ) =====================
 function renderAllCategories() {
     categoriesSections.innerHTML = '';
     categoryElements = [];
@@ -474,7 +572,8 @@ roomInfoBtn?.addEventListener("click", (e) => {
     e.stopPropagation();
     if (roomInfoTooltip.classList.contains("hidden")) {
         if (lobbyQr && roomCode) {
-            lobbyQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${roomCode}`;
+            const mobileUrl = `${window.location.origin}?room=${roomCode}`;
+            lobbyQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(mobileUrl)}`;
             lobbyCode.textContent = roomCode;
         }
         roomInfoTooltip.classList.remove("hidden");
@@ -495,17 +594,14 @@ continueBtn.onclick = () => {
     renderAllCategories();
     updateLobbyPlayerCount();
 
-    // Снимаем фокус со всех элементов
     if (document.activeElement) {
         document.activeElement.blur();
     }
 
-    // Жёсткий скролл наверх
     window.scrollTo(0, 0);
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
 
-    // Устанавливаем фокус на первую игру БЕЗ скролла
     setTimeout(() => {
         if (categoryElements.length > 0 && categoryElements[0].gameCards.length > 0) {
             const firstCard = categoryElements[0].gameCards[0];
@@ -514,7 +610,6 @@ continueBtn.onclick = () => {
             currentGameInCategory = 0;
         }
 
-        // Скрываем курсор
         document.body.style.cursor = 'none';
         gameLobby.style.cursor = 'none';
     }, 50);
@@ -523,9 +618,12 @@ continueBtn.onclick = () => {
     if (elem.requestFullscreen) elem.requestFullscreen();
 };
 
-// Показываем курсор при движении мыши
+featuredPlayBtn?.addEventListener("click", launchSelectedGame);
+
 let cursorTimeout;
 document.addEventListener('mousemove', () => {
+    if (!gameLobby || gameLobby.classList.contains('hidden')) return;
+
     document.body.style.cursor = '';
     gameLobby.style.cursor = '';
 
@@ -537,8 +635,6 @@ document.addEventListener('mousemove', () => {
         }
     }, 2000);
 });
-
-featuredPlayBtn?.addEventListener("click", launchSelectedGame);
 
 function escapeHtml(str) {
     return str.replace(/[&<>]/g, (m) => m === '&' ? '&amp;' : (m === '<' ? '&lt;' : '&gt;'));
