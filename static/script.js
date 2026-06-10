@@ -42,6 +42,15 @@ if (isMobile) {
     pc.style.display = "none";
     mobile.style.display = "flex";
 
+    // Автоматический дефис при вводе кода
+    mobileCodeInput?.addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, ''); // убираем всё кроме цифр
+        if (value.length > 3) {
+            value = value.slice(0, 3) + '-' + value.slice(3, 6);
+        }
+        e.target.value = value.slice(0, 7); // максимум 123-456
+    });
+
     // Получаем код комнаты из URL
     const urlParams = new URLSearchParams(window.location.search);
     const roomFromUrl = urlParams.get('room');
@@ -118,7 +127,7 @@ if (!isMobile) {
 
         codeEl.textContent = roomCode;
 
-        // QR ведёт на этот же сайт с параметром комнаты
+        // QR ведёт на этот же сайт с параметром комнаты (URL, а не просто код!)
         const mobileUrl = `${window.location.origin}?room=${roomCode}`;
         qr.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(mobileUrl)}`;
 
@@ -133,13 +142,13 @@ if (!isMobile) {
 // ===================== МОБИЛЬНАЯ ЛОГИКА =====================
 if (isMobile) {
     mobileJoinBtn?.addEventListener("click", async () => {
-        const code = mobileCodeInput.value.trim();
-        const name = mobileNameInput.value.trim() || "Игрок";
-
+        let code = mobileCodeInput.value.trim();
         if (!code) {
             alert("Введите код комнаты");
             return;
         }
+
+        const name = mobileNameInput.value.trim() || "Игрок";
 
         // Проверяем существование комнаты
         const response = await fetch(`/api/room/${code}/exists`);
@@ -179,10 +188,8 @@ function connectWebSocket(code, playerName, deviceType, isCreatingRoom) {
         console.log('WebSocket connected');
 
         if (isCreatingRoom) {
-            // ПК создаёт комнату
             ws.send(JSON.stringify({ type: "create_room", name: playerName, device: deviceType }));
         } else {
-            // Телефон подключается к комнате
             ws.send(JSON.stringify({ type: "join", name: playerName, device: deviceType }));
         }
     };
@@ -192,13 +199,11 @@ function connectWebSocket(code, playerName, deviceType, isCreatingRoom) {
         console.log('Message:', data);
 
         if (data.type === "room_created") {
-            console.log('Room created:', data.code);
             // Запрашиваем список игроков
             ws.send(JSON.stringify({ type: "get_players" }));
         }
 
         if (data.type === "joined") {
-            console.log('Joined room:', data.code);
             if (isMobile) {
                 const waitStatus = document.getElementById("mobileWaitStatus");
                 if (waitStatus) {
@@ -215,8 +220,7 @@ function connectWebSocket(code, playerName, deviceType, isCreatingRoom) {
             players.forEach(player => {
                 const div = document.createElement("div");
                 div.className = "player";
-                const hostBadge = player.is_host ? ' <span style="font-size:10px; color:#ffd166">(хост)</span>' : '';
-                div.innerHTML = `<img src="${player.avatar}"><span>${escapeHtml(player.name)}${hostBadge}</span>`;
+                div.innerHTML = `<img src="${player.avatar}"><span>${escapeHtml(player.name)}</span>`;
                 playersEl.appendChild(div);
             });
             if (players.length > 0) {
@@ -242,14 +246,10 @@ function connectWebSocket(code, playerName, deviceType, isCreatingRoom) {
 
     ws.onclose = () => {
         console.log('WebSocket closed');
-        if (!isMobile && roomCode) {
-            // Если хост отключается, комната удаляется
-            alert("Соединение разорвано");
-        }
     };
 }
 
-// ===================== ОСТАЛЬНЫЕ ФУНКЦИИ (ПК ЛОББИ) =====================
+// ===================== ОСТАЛЬНЫЕ ФУНКЦИИ =====================
 function renderAllCategories() {
     categoriesSections.innerHTML = '';
     categoryElements = [];
