@@ -101,10 +101,12 @@ const CATEGORIES = [
     }
 ];
 
+// ===================== ПК ЛОГИКА =====================
 if (!isMobile) {
     connectWebSocket(roomCode, "Хост", "pc", true);
 }
 
+// ===================== МОБИЛЬНАЯ ЛОГИКА =====================
 if (isMobile && mobileJoinBtn) {
     mobileJoinBtn.addEventListener("click", async () => {
         let code = mobileCodeInput.value.trim();
@@ -116,21 +118,28 @@ if (isMobile && mobileJoinBtn) {
 
         const name = mobileNameInput.value.trim() || "Игрок";
 
-        const response = await fetch(`/api/room/${code}/exists`);
-        const data = await response.json();
+        // Проверяем существование комнаты
+        try {
+            const response = await fetch(`/api/room/${code}/exists`);
+            const data = await response.json();
 
-        if (!data.exists) {
-            mobileStatus.textContent = "Комната не найдена";
+            if (!data.exists) {
+                mobileStatus.textContent = "Комната не найдена";
+                mobileStatus.style.color = "#ff4757";
+                return;
+            }
+
+            connectWebSocket(code, name, "mobile", false);
+
+            mobileJoinPanel.style.display = "none";
+            mobileControls.classList.remove("hidden");
+            mobileStatus.textContent = "Подключение...";
+            mobileStatus.style.color = "#4f8cff";
+        } catch (err) {
+            console.error("Fetch error:", err);
+            mobileStatus.textContent = "Ошибка проверки комнаты";
             mobileStatus.style.color = "#ff4757";
-            return;
         }
-
-        connectWebSocket(code, name, "mobile", false);
-
-        mobileJoinPanel.style.display = "none";
-        mobileControls.classList.remove("hidden");
-        mobileStatus.textContent = "Подключение...";
-        mobileStatus.style.color = "#4f8cff";
     });
 
     if (mobileDisconnectBtn) {
@@ -141,11 +150,13 @@ if (isMobile && mobileJoinBtn) {
     }
 }
 
+// ===================== WEB-SOCKET ЛОГИКА =====================
 function connectWebSocket(code, playerName, deviceType, isCreatingRoom) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(`${protocol}//${window.location.host}/ws/${code}`);
 
     ws.onopen = () => {
+        console.log("WebSocket connected");
         if (isCreatingRoom) {
             ws.send(JSON.stringify({ type: "create_room", name: playerName, device: deviceType }));
         } else {
@@ -155,6 +166,7 @@ function connectWebSocket(code, playerName, deviceType, isCreatingRoom) {
 
     ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
+        console.log("WS message:", data);
 
         if (data.type === "room_created") {
             ws.send(JSON.stringify({ type: "get_players" }));
@@ -188,12 +200,14 @@ function connectWebSocket(code, playerName, deviceType, isCreatingRoom) {
         }
     };
 
-    ws.onerror = () => {
+    ws.onerror = (err) => {
+        console.error("WebSocket error:", err);
         if (!isMobile) alert("Ошибка подключения к серверу");
         else mobileStatus.textContent = "Ошибка подключения";
     };
 }
 
+// ===================== ЛОББИ И ИГРЫ =====================
 function renderAllCategories() {
     categoriesSections.innerHTML = '';
     categoryElements = [];
