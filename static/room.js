@@ -22,14 +22,12 @@ let players = [];
 let selectedGameId = null;
 let selectedGameData = null;
 let ws = null;
-let isHost = false;
 
 let currentCategoryIndex = 0;
 let currentGameInCategory = 0;
 let categoryElements = [];
 let isAnimating = false;
 
-// Получаем код комнаты из URL
 const urlParams = new URLSearchParams(window.location.search);
 roomCode = urlParams.get('code');
 const isMobile = window.innerWidth < 768;
@@ -38,7 +36,6 @@ if (!roomCode) {
     window.location.href = '/';
 }
 
-// Автоматический дефис при вводе кода на мобильном
 if (mobileCodeInput) {
     mobileCodeInput.addEventListener('input', function(e) {
         let value = e.target.value.replace(/\D/g, '');
@@ -104,12 +101,10 @@ const CATEGORIES = [
     }
 ];
 
-// ===================== ПК ЛОГИКА =====================
 if (!isMobile) {
     connectWebSocket(roomCode, "Хост", "pc", true);
 }
 
-// ===================== МОБИЛЬНАЯ ЛОГИКА =====================
 if (isMobile && mobileJoinBtn) {
     mobileJoinBtn.addEventListener("click", async () => {
         let code = mobileCodeInput.value.trim();
@@ -146,7 +141,6 @@ if (isMobile && mobileJoinBtn) {
     }
 }
 
-// ===================== WEB-SOCKET ЛОГИКА =====================
 function connectWebSocket(code, playerName, deviceType, isCreatingRoom) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(`${protocol}//${window.location.host}/ws/${code}`);
@@ -163,15 +157,12 @@ function connectWebSocket(code, playerName, deviceType, isCreatingRoom) {
         const data = JSON.parse(event.data);
 
         if (data.type === "room_created") {
-            isHost = true;
             ws.send(JSON.stringify({ type: "get_players" }));
         }
 
-        if (data.type === "joined") {
-            if (isMobile) {
-                mobileStatus.textContent = "Подключено! Ожидаем начала...";
-                mobileStatus.style.color = "#00e676";
-            }
+        if (data.type === "joined" && isMobile) {
+            mobileStatus.textContent = "Подключено! Ожидаем начала...";
+            mobileStatus.style.color = "#00e676";
         }
 
         if (data.type === "players_update" && !isMobile) {
@@ -203,7 +194,6 @@ function connectWebSocket(code, playerName, deviceType, isCreatingRoom) {
     };
 }
 
-// ===================== ЛОББИ И ИГРЫ =====================
 function renderAllCategories() {
     categoriesSections.innerHTML = '';
     categoryElements = [];

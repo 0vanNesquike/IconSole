@@ -12,9 +12,6 @@
 <div id="fireflies"></div>
 <div id="cursor-glow"></div>
 
-<!-- ===================== -->
-<!-- PC / TV SCREEN (ЛОББИ) -->
-<!-- ===================== -->
 <div id="pc-room-screen">
     <div class="top">
         <div class="logo">◉ IconSole</div>
@@ -54,9 +51,6 @@
     </div>
 </div>
 
-<!-- ===================== -->
-<!-- GAME LOBBY (выбор игры) -->
-<!-- ===================== -->
 <div id="game-lobby" class="hidden">
     <div class="lobby-header">
         <div class="logo">◉ IconSole</div>
@@ -87,9 +81,6 @@
     <div id="categories-sections"></div>
 </div>
 
-<!-- ===================== -->
-<!-- MOBILE SCREEN (ТЕЛЕФОН) -->
-<!-- ===================== -->
 <div id="mobile-screen">
     <div class="mobile-container" id="mobile-join-panel">
         <h1>◉ IconSole</h1>
@@ -112,7 +103,6 @@
 </div>
 
 <script>
-    // Получаем код комнаты из URL
     const urlParams = new URLSearchParams(window.location.search);
     const roomCode = urlParams.get('code');
     const isMobile = window.innerWidth < 768;
@@ -129,7 +119,6 @@
         document.getElementById("mobile-screen").style.display = "none";
         document.getElementById("code").textContent = roomCode;
 
-        // Генерируем QR-код с ссылкой на эту же страницу
         const roomUrl = `${window.location.origin}/room?code=${roomCode}`;
         document.getElementById("qr").src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(roomUrl)}`;
     }
